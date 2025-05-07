@@ -1,5 +1,3 @@
-
-import { useState , useEffect} from "react";
 import {Routes, Route, Navigate , useNavigate, useAsyncError} from 'react-router-dom'
 import FirstLogin from './pages/FirstLogin'
 import CreateNewWallet from './pages/CreateNewWallet'
@@ -21,8 +19,8 @@ import Account from './pages/Account'
 import NFT from './pages/NFT'
 import Crypto from './pages/Crypto'
 import '@ant-design/v5-patch-for-react-19';
- 
-
+import React, { useEffect, useState } from "react";
+import { ToastContainer } from "react-toastify";
 
 
 
@@ -34,6 +32,9 @@ function App() {
   const [walletAddress, setWalletAddress] = useState(null);
   const [seedPhrase, setSeedPhrase] = useState(null);
   const navigate = useNavigate();
+  const [blockNumber, setBlockNumber] = useState(null);
+  const [provider, setProvider] = useState(null);
+
 
   useEffect(() => {
     const savedWallet = localStorage.getItem("walletAddress");
@@ -41,16 +42,6 @@ function App() {
       setWalletAddress(savedWallet);
     }
   }, []);
-
-  useEffect(() => {
-    const WalletExists =
-localStorage.getItem("wallet");
-    if  (WalletExists) {
-      navigate("/home");
-    } else {
-      navigate("/");
-    }
-  },[]);
   
     
       
@@ -86,9 +77,16 @@ localStorage.getItem("wallet");
         <Route path='/nft' element={<NFT/>} exact />
 
       </Routes>
-      
+      <>
+      <ToastContainer position="top-right" autoClose={3000}  style={{ width: "%80" }}hideProgressBar={false} />
+      {/* Diğer bileşenler */}
+    </>
+   
     </div>
+    
   );
 };
 
 export default App;
+
+

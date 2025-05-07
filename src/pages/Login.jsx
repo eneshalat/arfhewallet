@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
 import { useNavigate } from "react-router-dom";
+import { getWalletData } from "../utils/secureStorage";
 import "./Login.css";
+import { toast } from "react-toastify";
 
-function Login({ setWallet }) {
+function Login() {
   const [inputPassword, setInputPassword] = useState("");
   const navigate = useNavigate();
 
@@ -14,30 +15,30 @@ function Login({ setWallet }) {
     }
   }, [navigate]);
 
-  const handleLogin = () => {
-    const savedPassword = localStorage.getItem("walletPassword"); // Kayıtlı şifreyi al
-
-    if (!savedPassword) {
-      alert("Kayıtlı şifre bulunamadı!");
+  const handleLogin = async () => {
+    // 🔥 Şifre boşsa hata ver
+    if (!inputPassword) {
+      toast.warn("Lütfen bir şifre girin!");
       return;
     }
+    console.log("🟢 getWalletData fonksiyon tipi:", typeof getWalletData); // 🔥 Burada test ediyoruz
+    try {
+      // ✅ IndexedDB’den Private Key ve Mnemonic’i al
+      const walletData = await getWalletData(inputPassword);
 
-    if (inputPassword === savedPassword) {
-      localStorage.setItem("isLoggedIn", "true");
-      alert("✅ Giriş başarılı!");
-
-      // 🌟 Kullanıcının cüzdan adresini al ve konsola yazdır
-      const savedWalletAddress = localStorage.getItem("walletAddress");
-
-      if (savedWalletAddress) {
-        console.log("✅ Kullanıcının cüzdan adresi:", savedWalletAddress);
-      } else {
-        console.warn("❌ Cüzdan adresi kayıtlı değil!");
+      if (!walletData) {
+        toast.warn("Hata: Cüzdan verileri bulunamadı!");
+        return;
       }
 
+      // 🔥 Başarılı giriş: Kullanıcıyı yönlendir
+      localStorage.setItem("isLoggedIn", "true");
+      toast.success("✅ Cüzdanınız açıldı!");
       navigate("/home");
-    } else {
-      alert("❌ Yanlış şifre! Lütfen tekrar deneyin.");
+
+    } catch (error) {
+      console.error("Giriş hatası:", error);
+      toast.error("Hata: Şifre yanlış veya cüzdan verileri çözülemedi!");
     }
   };
 
@@ -56,15 +57,8 @@ function Login({ setWallet }) {
         Giriş Yap
       </button>
       <button
-        onClick={() => {
-          if (window.history.state && window.history.state.idx > 0) {
-            navigate(-1);
-          } else {
-            navigate("/", { replace: true });
-          }
-        }}
-        className="back-button-login"
-      >
+        onClick={() => navigate(-1)}
+        className="back-button-login">
         Geri
       </button>
     </div>
@@ -72,3 +66,4 @@ function Login({ setWallet }) {
 }
 
 export default Login;
+

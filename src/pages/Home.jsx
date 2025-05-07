@@ -1,38 +1,118 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./Home.css";
-import Homereceivebutton from '../components/button/Homereceivingbutton';
+import Homereceivebutton from "../components/button/Homereceivingbutton";
 import Bottommenu from "../components/menu/Bottommenu";
 import { Homesendbutton, HomeDiscoverybutton, HomeHistorybutton, HomeRevokebutton } from "../components/button/Homesendbutton";
 import Sidebar from "../components/menu/Sidebar.jsx";
+import { ethers } from "ethers";
+import { getWalletData } from "../utils/secureStorage";
+import { NETWORKS, createProvider } from "../utils/network";
+import { getAssets } from "../utils/getAssets"; // ← yeni fonksiyon burada
 
 const Home = () => {
- 
+  const [walletAddress, setWalletAddress] = useState("");
+  const [balance, setBalance] = useState("Yükleniyor...");
+  const [error, setError] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("ethereum");
+  const [provider, setProvider] = useState(null);
+  const [tokens, setTokens] = useState([]);
+
+  // Varlıkları çek
+  useEffect(() => {
+    if (!walletAddress) return;
+    getAssets(walletAddress, selectedNetwork)
+      .then(setTokens)
+      .catch(err => {
+        console.error("Token verileri alınırken hata:", err);
+        setTokens([]);
+      });
+  }, [walletAddress, selectedNetwork]);
+
+  useEffect(() => {
+    try {
+      const newProvider = createProvider(selectedNetwork);
+      setProvider(newProvider);
+    } catch (err) {
+      console.error("Ağ değiştirirken hata oluştu:", err);
+    }
+  }, [selectedNetwork]);
+
+  const handleNetworkChange = (e) => {
+    setSelectedNetwork(e.target.value);
+  };
+
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      try {
+        const savedWallet = await getWalletData(localStorage.getItem("walletPassword"));
+        if (!savedWallet?.privateKey) {
+          setError("Cüzdan adresi bulunamadı!");
+          return;
+        }
+        const wallet = new ethers.Wallet(savedWallet.privateKey);
+        setWalletAddress(wallet.address);
+      } catch (err) {
+        console.error("Cüzdan alınırken hata:", err);
+        setError("Cüzdan verileri çözülemedi!");
+      }
+    };
+
+    fetchWalletData();
+  }, []);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!walletAddress || !provider) return;
+      try {
+        const balanceWei = await provider.getBalance(walletAddress);
+        setBalance(ethers.formatEther(balanceWei) + " ETH");
+      } catch (error) {
+        console.error("Bakiye alınırken hata oluştu:", error);
+        setBalance("Hata!");
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [walletAddress, provider]);
+
+  useEffect(() => {
+    const savedAddress = localStorage.getItem("walletAddress");
+    if (savedAddress) {
+      setWalletAddress(savedAddress);
+    }
+  }, []);
+
   return (
     <div className="container">
-      
-      {/* 📌 Üst Kısım - Hesap ve Network */}
       <div className="top-section">
-        <h3 className="account-title">Hesap</h3>
-        <p className="account-name">biar.arf</p>
-        <div className="network-badge">
-          Network : <span className="network-name">fhEVM</span>
-        </div>
+        <h3 className="account-title2">Hesap</h3>
+        <p className="accountname">biar.arf</p>
+        <p className="wallet-address2">{walletAddress || "Cüzdan adresi bulunamadı!"}</p>
       </div>
-          <Sidebar />
-      {/* 📌 Profil ve Bakiye */}
+      
+      <Sidebar />
+      <div className="network"> 
+        <label htmlFor="network">Network: </label>
+      <select id="network" value={selectedNetwork} onChange={handleNetworkChange}>
+        {Object.keys(NETWORKS).map((network) => (
+          <option key={network} value={network}>{network}’ye Bağlan</option>
+        ))}
+      </select>
+      </div>
+    
+      <div className="scroll-wrapper">
+    
       <div className="profile-container">
         <img src="/image2.png" alt="Profile" className="profile-image" />
-        <h1 className="balance">1.501,12₺</h1>
       </div>
+      <h1 className="balance">{balance}</h1>
 
-      {/* 📌 Grafik Alanı */}
       <div className="chart-container">
-        <div className="chart">
-          {/* Grafik Kütüphanesi ile Eklenecek */}
-        </div>
+        <div className="chart"></div>
       </div>
 
-      {/* 📌 İşlem Butonları */}
       <div className="action-buttons">
         <Homereceivebutton />
         <HomeDiscoverybutton />
@@ -40,17 +120,27 @@ const Home = () => {
         <HomeRevokebutton />
         <Homesendbutton />
       </div>
-
-      {/* 📌 Varlıklar */}
-      <div className="assets-container">
-        <h2 className="assets-title">Assets</h2>
-        <div className="asset-item">1 ARF</div>
-        <div className="asset-item">1 ETH</div>
-        <div className="asset-item">1 BTC</div>
-        <div className="asset-item">1 SOL</div>
+   
+      <div className="assets">
+        <div className="assets-container">
+          <h2 className="assets-title">Assets</h2>
+          {tokens.length === 0 ? (
+            <p>Yükleniyor...</p>
+          ) : (
+            <div className="asset-items">
+              {tokens.map((token, index) => (
+                <div key={index} className="asset-item">
+                  <h3 className="asset-name">{token.name}</h3>
+                  <p className="asset-balance">
+                    {token.balance} {token.symbol}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-
-    
+    </div>
       <Bottommenu />
     </div>
   );
